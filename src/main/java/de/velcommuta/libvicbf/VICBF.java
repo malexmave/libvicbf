@@ -50,11 +50,63 @@ public class VICBF {
 
 
     /**
-     * Add a key to the bloom filter
+     * Insert a key to the bloom filter
      * @param key The key, as string
      */
-    public void add(String key) {
-
+    public void insert(String key) {
+    	for (int i = 0; i < mHashFunctions; i++) {
+    		// Calculate slot and increment value
+    		short slot = calculateSlot(key, i);
+    		byte increment = calculateIncrement(key, i);
+    		if (mBloomFilter.containsKey(slot)) {
+    			// We have an existing value for that slot. Retrieve it and add the increment
+    			byte existing = mBloomFilter.get(slot);
+    			byte newvalue = (byte) (existing + increment);
+    			// This calculation may have experienced an overflow. Check the result
+    			if (newvalue < existing) {
+    				// We have experienced a rollover. Fix value to maximum value of byte, 255
+    				newvalue = (byte) 255;
+    			}
+    			// Put the value into the bloom filter
+    			mBloomFilter.put(slot, newvalue);
+    		} else {
+    			// No existing value in the bloom filter. We can just insert the new value
+    			mBloomFilter.put(slot, increment);
+    		}
+    	}
+    }
+    
+    
+    /**
+     * Query the bloom filter for a key
+     * @param key The key to query for
+     * @return True if the key may have been inserted into the bloom filter, false if it definitely has not.
+     */
+    public boolean query(String key) {
+    	for (int i = 0; i < mHashFunctions; i++) {
+    		// Calculate slot and increment
+    		short slot = calculateSlot(key, i);
+    		byte decrement = calculateIncrement(key, i);
+    		if (mBloomFilter.containsKey(slot)) {
+    			 byte slotvalue = mBloomFilter.get(slot);
+    			 int diff = slotvalue - decrement;
+    			 if (diff < 0) {
+    				 // The decrement value was larger than the value of the slot. This means that
+    				 // the slot cannot have been incremented by it.
+    				 return false;
+    			 } else if (diff > 0 && diff < L) {
+    				 // The difference is smaller than L. This is impossible if the key was inserted into
+    				 // the bloom filter. Thus, it cannot have been inserted.
+    				 return false;
+    			 }
+    		} else {
+    			// No value in this slot means that the key cannot be contained in the bloom filter
+    			return false;
+    		}
+    	}
+    	// We have made it through all checks. This means that we cannot rule out that the key is
+    	// in the bloom filter.
+    	return true;
     }
 
 

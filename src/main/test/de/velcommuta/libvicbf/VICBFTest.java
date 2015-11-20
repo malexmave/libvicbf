@@ -27,5 +27,13 @@ public class VICBFTest {
 		t = test.calculateIncrement("decafbad", 0);
 		assertEquals(t, (byte) 5);
 	}
+	
+	@Test
+	public void test_insert_query() {
+		VICBF test = new VICBF(10000, 3);
+		test.insert("deadbeef");
+		assertTrue(test.query("deadbeef"));
+		assertFalse(test.query("deafbeet"));
+	}
 
 }
