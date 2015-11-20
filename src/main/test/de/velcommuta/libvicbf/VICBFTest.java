@@ -31,9 +31,70 @@ public class VICBFTest {
 	@Test
 	public void test_insert_query() {
 		VICBF test = new VICBF(10000, 3);
+		assertFalse(test.query("deadbeef"));
 		test.insert("deadbeef");
 		assertTrue(test.query("deadbeef"));
 		assertFalse(test.query("deafbeet"));
 	}
-
+	
+	@Test
+	public void test_insert_delete() {
+		VICBF test = new VICBF(10000, 3);
+		test.insert("decafbad");
+		assertTrue(test.query("decafbad"));
+		try {
+			test.remove("decafbad");
+		} catch (Exception e) {
+			assertTrue(false);
+		}
+		assertFalse(test.query("decafbad"));
+	}
+	
+	@Test
+	public void test_delete_not_inserted() {
+		VICBF test = new VICBF(10000, 3);
+		try {
+			test.remove("decafbad");
+			assertFalse(true);
+		} catch (Exception e) {
+			assertTrue(true);
+		}
+	}
+	
+	@Test
+	public void test_multi_insert_one_delete() {
+		VICBF test = new VICBF(10000, 3);
+		test.insert("decafbad");
+		test.insert("deadbeef");
+		test.insert("carebearstare");
+		try {
+			test.remove("decafbad");
+		} catch (Exception e) {
+			assertTrue(false);
+		}
+		assertFalse(test.query("decafbad"));
+		assertTrue(test.query("deadbeef"));
+		assertTrue(test.query("carebearstare"));
+	}
+	
+	@Test
+	public void test_delete_regression_1() {
+		// This test aims to check a specific bordercase in the deletion routine
+		// that could result in an inconsistent VICBF when triggered.
+		VICBF test = new VICBF(10000, 3);
+		test.insert("106");
+		test.insert("771");
+		try {
+			test.remove("132");
+			assertFalse(true);
+		} catch (Exception e) {
+			assertTrue(true);
+		}
+		try {
+			test.remove("106");
+		} catch (Exception e) {
+			assertFalse(true);
+		}
+		assertTrue(test.query("771"));
+	}
 }

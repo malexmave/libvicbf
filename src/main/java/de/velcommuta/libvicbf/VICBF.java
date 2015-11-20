@@ -1,12 +1,12 @@
 package de.velcommuta.libvicbf;
 
 import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Hashtable;
+import java.util.LinkedList;
+import java.util.List;
 import java.math.BigInteger;
-import java.math.BigDecimal;
 
 /**
  * Implementation of a variable-increment counting bloom filter, as proposed by Rottenstreich et al.
@@ -107,6 +107,47 @@ public class VICBF {
     	// We have made it through all checks. This means that we cannot rule out that the key is
     	// in the bloom filter.
     	return true;
+    }
+    
+    
+    public void remove(String key) throws Exception {
+    	List<String>  opList = new LinkedList<>();
+    	List<Short> slotList = new LinkedList<>();
+    	List<Byte> valueList = new LinkedList<>();
+    	for (int i = 0; i < mHashFunctions; i++) {
+    		short slot = calculateSlot(key, i);
+    		byte decrement = calculateIncrement(key, i);
+    		if (!mBloomFilter.containsKey(slot)) {
+    			throw new Exception("Trying to delete key not contained in bloom filter");
+    		}
+    		byte bfval = mBloomFilter.get(slot);
+    		if (bfval == (byte) 255) {
+    			// The counter is at its maximum. We need to leave it fixed there, otherwise
+    			// bad things can happen. Ignore this slot and move on.
+    			continue;
+    		} else if (bfval - decrement < 0) {
+    			// Decrementing by this value would make the counter negative. Abort.
+    			throw new Exception("Trying to delete key not contained in bloom filter");
+    		} else if (bfval - decrement == 0) {
+    			// Decrementing would set the counter to zero. Schedule deletion of the key.
+    			opList.add("del");
+    			slotList.add(slot);
+    			valueList.add((byte) 0);
+    		} else {
+    			// Decrementing would result in a non-zero value. Schedule decrement
+    			opList.add("decr");
+    			slotList.add(slot);
+    			valueList.add((byte) (bfval - decrement));
+    		}
+    	}
+    	// Perform deferred operations
+    	for (int i = 0; i < opList.size(); i++) {
+    		if (opList.get(i).equals("del")) {
+    			mBloomFilter.remove(slotList.get(i));
+    		} else if (opList.get(i).equals("decr")) {
+    			mBloomFilter.put(slotList.get(i), valueList.get(i));
+    		}
+    	}
     }
 
 
