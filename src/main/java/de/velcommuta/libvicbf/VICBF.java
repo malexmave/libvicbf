@@ -1,5 +1,9 @@
 package de.velcommuta.libvicbf;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.EOFException;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -7,6 +11,10 @@ import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
 import java.math.BigInteger;
+import java.lang.Math;
+import java.nio.ByteBuffer;
+
+import javax.xml.bind.DatatypeConverter;
 
 /**
  * Implementation of a variable-increment counting bloom filter, as proposed by Rottenstreich et al.
@@ -27,9 +35,10 @@ import java.math.BigInteger;
 public class VICBF {
     private BigInteger mSlotsBI;
     private int mHashFunctions;
-    private Hashtable<Short, Byte> mBloomFilter;
+    private Hashtable<Integer, Byte> mBloomFilter;
     private int L = 4;
     private BigInteger LBI = BigInteger.valueOf(4);
+    private int mCount = 0;
 
     /**
      * Constructor for new VICBF
@@ -56,7 +65,7 @@ public class VICBF {
     public void insert(String key) {
     	for (int i = 0; i < mHashFunctions; i++) {
     		// Calculate slot and increment value
-    		short slot = calculateSlot(key, i);
+    		int slot = calculateSlot(key, i);
     		byte increment = calculateIncrement(key, i);
     		if (mBloomFilter.containsKey(slot)) {
     			// We have an existing value for that slot. Retrieve it and add the increment
@@ -74,6 +83,7 @@ public class VICBF {
     			mBloomFilter.put(slot, increment);
     		}
     	}
+    	mCount = mCount + 1;
     }
     
     
@@ -85,7 +95,7 @@ public class VICBF {
     public boolean query(String key) {
     	for (int i = 0; i < mHashFunctions; i++) {
     		// Calculate slot and increment
-    		short slot = calculateSlot(key, i);
+    		int slot = calculateSlot(key, i);
     		byte decrement = calculateIncrement(key, i);
     		if (mBloomFilter.containsKey(slot)) {
     			 byte slotvalue = mBloomFilter.get(slot);
@@ -112,10 +122,10 @@ public class VICBF {
     
     public void remove(String key) throws Exception {
     	List<String>  opList = new LinkedList<>();
-    	List<Short> slotList = new LinkedList<>();
+    	List<Integer> slotList = new LinkedList<>();
     	List<Byte> valueList = new LinkedList<>();
     	for (int i = 0; i < mHashFunctions; i++) {
-    		short slot = calculateSlot(key, i);
+    		int slot = calculateSlot(key, i);
     		byte decrement = calculateIncrement(key, i);
     		if (!mBloomFilter.containsKey(slot)) {
     			throw new Exception("Trying to delete key not contained in bloom filter");
@@ -148,6 +158,11 @@ public class VICBF {
     			mBloomFilter.put(slotList.get(i), valueList.get(i));
     		}
     	}
+    	mCount = mCount-1;
+    }
+    
+    public int getSize() {
+    	return mCount;
     }
 
 
@@ -157,7 +172,7 @@ public class VICBF {
      * @param i The index of the hash function
      * @return The slot (as short)
      */
-    protected Short calculateSlot(String key, int i) {
+    protected int calculateSlot(String key, int i) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
             byte[] digest = md.digest((key + i).getBytes("utf8"));
@@ -171,10 +186,10 @@ public class VICBF {
             System.arraycopy(digest, 0, dst, 1, digest.length);
             // Interpret as a number and get the result modulo the number of
             // slots to determine the slot.
-            return new BigInteger(dst).mod(mSlotsBI).shortValue();
+            return new BigInteger(dst).mod(mSlotsBI).intValue();
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             e.printStackTrace();
-            return null;
+            return -1;
         }
     }
     
@@ -197,6 +212,19 @@ public class VICBF {
         }
     }
     
+    /**
+     * Helper function for deserialization, used to set the state of the counters
+     * @param slot Slot of which the counter should be set
+     * @param value Value of the counter
+     */
+    protected void setCounter(int slot, byte value) {
+    	mBloomFilter.put(slot, value);
+    }
+    
+    protected void setCount(int count) {
+    	mCount = count;
+    }
+    
     // TODO Debugging helper, remove
     final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
     public static String bytesToHex(byte[] bytes) {
@@ -208,4 +236,77 @@ public class VICBF {
         }
         return new String(hexChars);
     }
+    
+
+	public static VICBF deserialize(String ser) throws IOException{
+		// Convert String to byte[]
+		byte[] hex = DatatypeConverter.parseHexBinary(ser);
+		// Wrap byte[] in DataInputStream
+		DataInputStream di = new DataInputStream(new ByteArrayInputStream(hex));
+		// The data format is:
+		// - 1 bit mode flag (full dump vs. partial dump)
+		// - 7 bit unsigned hash function count
+		// - 32 bit unsigned slot count
+		// - 32 bit unsigned number of entries
+		// - 4 bit unsigned L base (see paper)
+		// - 4 bit unsigned bits per counter (should always be 8)
+		int flagAndHf = di.readUnsignedByte();
+		boolean isFullDump = (flagAndHf & 128) == 0;
+		int hashFunctions = flagAndHf & 127;
+		int slots = di.readInt();
+		int members = di.readInt();
+		int vibaseAndBpc = di.readUnsignedByte();
+		int vibase = (vibaseAndBpc & 240) >> 4; // 1111 0000 => First four bits of the byte
+		int bpc = vibaseAndBpc & 15;     // 0000 1111 => Last four bits of the byte
+		if (isFullDump) {
+			System.out.println("Full Dump: Yes");
+		} else {
+			System.out.println("Full Dump: No");
+		}
+		System.out.println("HFs:       " + hashFunctions);
+		System.out.println("Slots:     " + slots);
+		System.out.println("Members:   " + members);
+		System.out.println("VIbase:    " + vibase);
+		System.out.println("BPC:       " + bpc);
+		// TODO Check values for sanity
+		// Create bloom filter and set count
+		VICBF rv = new VICBF(slots, hashFunctions);
+		rv.setCount(members);
+		// Read counters and set values
+		if (isFullDump) {
+			for (int i = 0; i < slots; i++) {
+				rv.setCounter(i, di.readByte());
+			}
+		} else {
+			int bpi = (int) (Math.ceil((Math.log(slots) / Math.log(2)) / 8) * 8);
+			try {
+				if (bpi <= 32) {
+					byte[] b = new byte[bpi / 8];
+					while (true) {
+						di.read(b);
+						int slot = bytesToInt(b);
+						if (slot < 0) {
+							throw new IOException("Too many slots, do not fit into signed integer");
+						}
+						byte value = di.readByte();
+						rv.setCounter(slot, value);
+					}
+				} else {
+					throw new IOException("Too many slots, do not fit into signed integer");
+				}
+			} catch (EOFException e) {
+				// End of file reached. This is to be expected, do nothing
+			}
+		}
+		return rv;
+	}
+	
+	protected static int bytesToInt(byte[] bytes) {
+		int res = 0;
+		for (int i = 0; i < bytes.length; i++) {
+			res = res | (bytes[bytes.length - 1 - i] & 0xFF) << (8*i);
+		}
+		return res;
+	}
 }
+
