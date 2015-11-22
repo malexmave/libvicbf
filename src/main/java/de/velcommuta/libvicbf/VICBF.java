@@ -12,7 +12,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.math.BigInteger;
 import java.lang.Math;
-import java.nio.ByteBuffer;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -43,7 +42,6 @@ public class VICBF {
     /**
      * Constructor for new VICBF
      * @param slots Number of slots in the VICBF
-     * @param expected_entries Expected number of entries
      * @param hash_functions Number of hash functions to use
      */
     public VICBF(int slots, int hash_functions) {
