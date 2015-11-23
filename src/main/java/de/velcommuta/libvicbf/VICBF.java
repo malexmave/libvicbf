@@ -13,8 +13,6 @@ import java.util.List;
 import java.math.BigInteger;
 import java.lang.Math;
 
-import javax.xml.bind.DatatypeConverter;
-
 /**
  * Implementation of a variable-increment counting bloom filter, as proposed by Rottenstreich et al.
  * in their paper "The Variable-Increment Counting Bloom Filter", IEEE INFOCOM 2012,
@@ -238,7 +236,7 @@ public class VICBF {
 
 	public static VICBF deserialize(String ser) throws IOException{
 		// Convert String to byte[]
-		byte[] hex = DatatypeConverter.parseHexBinary(ser);
+		byte[] hex = hexStringToByteArray(ser);
 		// Wrap byte[] in DataInputStream
 		DataInputStream di = new DataInputStream(new ByteArrayInputStream(hex));
 		// The data format is:
@@ -256,16 +254,6 @@ public class VICBF {
 		int vibaseAndBpc = di.readUnsignedByte();
 		int vibase = (vibaseAndBpc & 240) >> 4; // 1111 0000 => First four bits of the byte
 		int bpc = vibaseAndBpc & 15;     // 0000 1111 => Last four bits of the byte
-		if (isFullDump) {
-			System.out.println("Full Dump: Yes");
-		} else {
-			System.out.println("Full Dump: No");
-		}
-		System.out.println("HFs:       " + hashFunctions);
-		System.out.println("Slots:     " + slots);
-		System.out.println("Members:   " + members);
-		System.out.println("VIbase:    " + vibase);
-		System.out.println("BPC:       " + bpc);
 		// TODO Check values for sanity
 		// Create bloom filter and set count
 		VICBF rv = new VICBF(slots, hashFunctions);
@@ -305,6 +293,22 @@ public class VICBF {
 			res = res | (bytes[bytes.length - 1 - i] & 0xFF) << (8*i);
 		}
 		return res;
+	}
+	
+	/**
+	 * Convert a String containing a hexadecimal representation of a byte[] into a byte[].
+	 * Credit: Dave L. on StackOverflow: http://stackoverflow.com/a/140861/1232833
+	 * @param s The hex string
+	 * @return The byte[]
+	 */
+	protected static byte[] hexStringToByteArray(String s) {
+	    int len = s.length();
+	    byte[] data = new byte[len / 2];
+	    for (int i = 0; i < len; i += 2) {
+	        data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+	                             + Character.digit(s.charAt(i+1), 16));
+	    }
+	    return data;
 	}
 }
 
