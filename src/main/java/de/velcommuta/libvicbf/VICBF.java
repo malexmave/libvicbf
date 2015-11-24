@@ -234,9 +234,13 @@ public class VICBF {
     }
     
 
-	public static VICBF deserialize(String ser) throws IOException{
-		// Convert String to byte[]
-		byte[] hex = hexStringToByteArray(ser);
+	public static VICBF deserialize(String ser) throws IOException {
+        // Convert String to byte[]
+        byte[] hex = hexStringToByteArray(ser);
+        return deserialize(hex);
+    }
+
+    public static VICBF deserialize(byte[] hex) throws IOException {
 		// Wrap byte[] in DataInputStream
 		DataInputStream di = new DataInputStream(new ByteArrayInputStream(hex));
 		// The data format is:
