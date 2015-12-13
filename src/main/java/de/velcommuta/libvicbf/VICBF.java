@@ -58,7 +58,7 @@ public class VICBF {
      * Insert a key to the bloom filter
      * @param key The key, as string
      */
-    public void insert(String key) {
+    public void insert(byte[] key) {
     	for (int i = 0; i < mHashFunctions; i++) {
     		// Calculate slot and increment value
     		int slot = calculateSlot(key, i);
@@ -88,7 +88,7 @@ public class VICBF {
      * @param key The key to query for
      * @return True if the key may have been inserted into the bloom filter, false if it definitely has not.
      */
-    public boolean query(String key) {
+    public boolean query(byte[] key) {
     	for (int i = 0; i < mHashFunctions; i++) {
     		// Calculate slot and increment
     		int slot = calculateSlot(key, i);
@@ -116,7 +116,7 @@ public class VICBF {
     }
     
     
-    public void remove(String key) throws Exception {
+    public void remove(byte[] key) throws Exception {
     	List<String>  opList = new LinkedList<>();
     	List<Integer> slotList = new LinkedList<>();
     	List<Byte> valueList = new LinkedList<>();
@@ -168,10 +168,14 @@ public class VICBF {
      * @param i The index of the hash function
      * @return The slot (as short)
      */
-    protected int calculateSlot(String key, int i) {
+    protected int calculateSlot(byte[] key, int i) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
-            byte[] digest = md.digest((key + i).getBytes("utf8"));
+            byte[] ctr = (""+i).getBytes("UTF8");
+			byte[] input = new byte[key.length + ctr.length];
+            System.arraycopy(key, 0, input, 0, key.length);
+            System.arraycopy(ctr, 0, input, key.length, ctr.length);
+            byte[] digest = md.digest(input);
             // BigInteger interprets the input as signed, but we want unsigned,
             // as the python counterpart uses unsigned numbers. So, we need to
             // make sure that the number is always interpreted as positive. We
@@ -196,10 +200,14 @@ public class VICBF {
      * @param i index of the hash function
      * @return Increment, as byte
      */
-    protected Byte calculateIncrement(String key, int i) {
+    protected Byte calculateIncrement(byte[] key, int i) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
-            byte[] digest = md.digest((-i + key).getBytes("utf8"));
+            byte[] ctr = ("-"+i).getBytes("UTF8");
+            byte[] input = new byte[key.length + ctr.length];
+            System.arraycopy(ctr, 0, input, 0, ctr.length);
+            System.arraycopy(key, 0, input, ctr.length, key.length);
+            byte[] digest = md.digest(input);
             byte rv = new BigInteger(digest).mod(LBI).byteValue();
             return (byte) (rv + L);
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
@@ -314,5 +322,6 @@ public class VICBF {
 	    }
 	    return data;
 	}
+	
 }
 
