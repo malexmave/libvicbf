@@ -203,7 +203,7 @@ public class VICBF {
     protected Byte calculateIncrement(byte[] key, int i) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
-            byte[] ctr = (""+(-i)).getBytes("UTF8");
+            byte[] ctr = ("-"+i).getBytes("UTF8");
             byte[] input = new byte[key.length + ctr.length];
             System.arraycopy(ctr, 0, input, 0, ctr.length);
             System.arraycopy(key, 0, input, ctr.length, key.length);
@@ -322,5 +322,6 @@ public class VICBF {
 	    }
 	    return data;
 	}
+	
 }
 
