@@ -70,7 +70,7 @@ public class VICBF {
     			// This calculation may have experienced an overflow. Check the result
     			if (newvalue < existing) {
     				// We have experienced a rollover. Fix value to maximum value of byte, 255
-    				newvalue = (byte) 255;
+    				newvalue = (byte) 127;
     			}
     			// Put the value into the bloom filter
     			mBloomFilter.put(slot, newvalue);
@@ -127,7 +127,7 @@ public class VICBF {
     			throw new Exception("Trying to delete key not contained in bloom filter");
     		}
     		byte bfval = mBloomFilter.get(slot);
-    		if (bfval == (byte) 255) {
+    		if (bfval == (byte) 127) {
     			// The counter is at its maximum. We need to leave it fixed there, otherwise
     			// bad things can happen. Ignore this slot and move on.
     			continue;

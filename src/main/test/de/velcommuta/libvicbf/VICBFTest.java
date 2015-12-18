@@ -84,6 +84,24 @@ public class VICBFTest {
 		assertTrue(test.query("deadbeef".getBytes()));
 		assertTrue(test.query("carebearstare".getBytes()));
 	}
+
+    @Test
+    public void test_overflow_fix() {
+        VICBF test = new VICBF(10000, 3);
+        for (int i = 0; i < 500; i++) {
+            test.insert("decafbad".getBytes());
+        }
+        for (int i = 0; i < 500; i++) {
+            try {
+                test.remove("decafbad".getBytes());
+            } catch (Exception e) {
+                fail(e.getMessage());
+            }
+        }
+        // Even though we have removed all the bytes we inserted, the values should have been fixed
+        // at the maximum value, meaning that it should still be reported as part of the VICBF
+        assertTrue(test.query("decafbad".getBytes()));
+    }
 	
 	@Test
 	public void test_delete_regression_1() {
