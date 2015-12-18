@@ -8,6 +8,8 @@
 *.war
 *.ear
 
+*.iml
+
 # Build folder
 build/
 
