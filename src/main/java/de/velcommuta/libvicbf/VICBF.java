@@ -266,15 +266,12 @@ public class VICBF {
 		// Wrap byte[] in DataInputStream
 		DataInputStream di = new DataInputStream(new ByteArrayInputStream(hex));
 		// The data format is:
-		// - 1 bit mode flag (full dump vs. partial dump)
-		// - 7 bit unsigned hash function count
+		// - 8 bit unsigned hash function count
 		// - 32 bit unsigned slot count
 		// - 32 bit unsigned number of entries
 		// - 4 bit unsigned L base (see paper)
 		// - 4 bit unsigned bits per counter (should always be 8)
-		int flagAndHf = di.readUnsignedByte();
-		boolean isFullDump = (flagAndHf & 128) == 0;
-		int hashFunctions = flagAndHf & 127;
+		int hashFunctions = di.readUnsignedByte();
 		int slots = di.readInt();
 		int members = di.readInt();
 		int vibaseAndBpc = di.readUnsignedByte();
@@ -284,31 +281,10 @@ public class VICBF {
 		// Create bloom filter and set count
 		VICBF rv = new VICBF(slots, hashFunctions);
 		rv.setCount(members);
+
 		// Read counters and set values
-		if (isFullDump) {
-			for (int i = 0; i < slots; i++) {
-				rv.setCounter(i, di.readByte());
-			}
-		} else {
-			int bpi = (int) (Math.ceil((Math.log(slots) / Math.log(2)) / 8) * 8);
-			try {
-				if (bpi <= 32) {
-					byte[] b = new byte[bpi / 8];
-					while (true) {
-						di.read(b);
-						int slot = bytesToInt(b);
-						if (slot < 0) {
-							throw new IOException("Too many slots, do not fit into signed integer");
-						}
-						byte value = di.readByte();
-						rv.setCounter(slot, value);
-					}
-				} else {
-					throw new IOException("Too many slots, do not fit into signed integer");
-				}
-			} catch (EOFException e) {
-				// End of file reached. This is to be expected, do nothing
-			}
+		for (int i = 0; i < slots; i++) {
+			rv.setCounter(i, di.readByte());
 		}
 		return rv;
 	}

@@ -140,20 +140,6 @@ public class VICBFTest {
 	}
 	
 	@Test
-	public void test_deserialize_python_partial() throws IOException {
-		// Serialization of VICBF with 1000 slots, containing numbers 123 and 126
-		String ser = "83000003e80000000248023b0703cd05028d0401b20502b207033b07";
-		VICBF v = VICBF.deserialize(ser);
-		assertTrue(v.query("123".getBytes()));
-		assertTrue(v.query("126".getBytes()));
-		assertFalse(v.query("1337".getBytes()));
-		assertEquals(v.getSize(), 2);
-		v.insert("1337".getBytes());
-		assertTrue(v.query("1337".getBytes()));
-		assertEquals(v.getSize(), 3);
-	}
-	
-	@Test
 	public void test_bytestoint() {
 		byte[] bytes1 = {(byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xFF};
 		byte[] bytes2 = {(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00};
